@@ -1,6 +1,8 @@
 import curses
 import plotting
 import data
+import orders
+import account
 import time
 import util
 def main(stdscr):
@@ -24,11 +26,16 @@ def main(stdscr):
     STATS_W = 28  # width of the right-side stats box
     # Derive info box widths from GRAPH_W but allow wrapping to multiple rows
     delayTime = 40  # Delay for each line being printed in milliseconds
-    # Call the plot_stock function to get the chart and metrics
-    symbol = "BTC-USD"
+    # Default view shows a ticker graph
+    symbol = "AAPL"
     period = "6mo"
     interval = "1d"
     plot, start_price, price, pct_change, period = plotting.plot_stock(symbol, period=period, interval=interval)
+    try:
+        hist_df = data.get_daily_history(symbol, period=period, interval=interval)
+    except Exception:
+        hist_df = None
+    holdings = account.get_holdings()
     lines = plot.split("\n")
 
     # Build content strings for the info boxes
@@ -105,6 +112,15 @@ def main(stdscr):
     inputWin = curses.newwin(3, term_w, input_y, 0)
     inputWin.box()
 
+    def set_input_message(msg):
+        inputWin.erase()
+        inputWin.box()
+        try:
+            inputWin.addstr(1, 2, msg[: term_w - 4])
+        except curses.error:
+            pass
+        inputWin.refresh()
+
     # Helper: draw info windows and graph
     def draw_all(current_price, current_pct, lines, hist_df=None):
         contents = make_contents(current_price, current_pct)
@@ -152,12 +168,46 @@ def main(stdscr):
                     high = hist_df['High'].max()
                     low = hist_df['Low'].min()
                     vol = int(hist_df['Volume'].iloc[-1]) if 'Volume' in hist_df.columns else None
-                    statsWin.addstr(7, 2, f"High: ${high:,.2f}")
-                    statsWin.addstr(8, 2, f"Low:  ${low:,.2f}")
+                    statsWin.addstr(6, 2, f"High: ${high:,.2f}")
+                    statsWin.addstr(7, 2, f"Low:  ${low:,.2f}")
                     if vol is not None:
-                        statsWin.addstr(9, 2, f"Vol: {vol:,}")
+                        statsWin.addstr(8, 2, f"Vol: {vol:,}")
                 except Exception:
                     pass
+            # Portfolio summary section
+            try:
+                acc = account.get_account_info()
+                statsWin.addstr(7, 2, "Portfolio:", curses.color_pair(3))
+                statsWin.addstr(8, 2, f"Eq: ${float(acc.get('portfolio_value', 0)) :,.0f}")
+                statsWin.addstr(9, 2, f"Cash: ${float(acc.get('cash', 0)) :,.0f}")
+
+            except Exception:
+                pass
+            # Holdings section
+            try:
+                statsWin.addstr(11, 2, "Holdings:", curses.color_pair(3))
+                row = 12
+                # Show all holdings that fit, starting from the most recent
+                available_rows = GRAPH_H - row - 1
+                start_idx = max(0, len(holdings) - available_rows)
+                for holding in holdings[start_idx:]:
+                    if row >= GRAPH_H - 1:
+                        break
+                    sym = holding['symbol']
+                    qty = holding['qty']
+                    price = holding['current_price']
+                    pl = holding['unrealized_pl']
+                    pl_color = curses.color_pair(1) if pl >= 0 else curses.color_pair(2)
+                    label = f"{sym}: {qty:.0f}@{price:.2f}"
+                    pl_text = f"${pl:+,.0f}"
+                    try:
+                        statsWin.addstr(row, 2, label)
+                        statsWin.addstr(row, 20, pl_text, pl_color)
+                    except curses.error:
+                        pass
+                    row += 1
+            except Exception:
+                pass
         except curses.error:
             pass
         statsWin.refresh()
@@ -171,11 +221,7 @@ def main(stdscr):
     # Initial draw
     draw_all(price, pct_change, lines, hist_df)
     # Input hint
-    try:
-        inputWin.addstr(1, 2, "Press 's' to change symbol/period, 'q' to quit.")
-        inputWin.refresh()
-    except curses.error:
-        pass
+    set_input_message("Press 's' to change symbol/period, 't' to trade, 'q' to quit.")
 
     # Now enter an update loop: poll for latest price every 5 seconds and update boxes
     stdscr.nodelay(True)
@@ -205,32 +251,66 @@ def main(stdscr):
                     curses.noecho()
                     curses.curs_set(0)
                     # restore input window box
-                    inputWin.erase()
-                    inputWin.box()
-                    inputWin.addstr(1, 2, "Press 's' to change symbol/period, 'q' to quit.")
-                    inputWin.refresh()
+                    set_input_message("Press 's' to change symbol/period, 't' to trade, 'q' to quit.")
 
                     if user_input:
                         parts = user_input.split()
-                        new_symbol = parts[0]
+                        new_symbol = parts[0].upper()
                         new_period = parts[1] if len(parts) > 1 else period
-                        # attempt to reload plot and history
                         try:
-                            new_plot, new_start, new_price, new_pct, new_period = plotting.plot_stock(new_symbol, period=new_period, interval=interval)
+                            plot, start_price, price, pct_change, period = plotting.plot_stock(new_symbol, period=new_period, interval=interval)
                             symbol = new_symbol
                             period = new_period
-                            start_price = new_start
-                            price = new_price
-                            pct_change = new_pct
-                            lines = new_plot.split('\n')
+                            lines = plot.split('\n')
                             try:
                                 hist_df = data.get_daily_history(symbol, period=period, interval=interval)
                             except Exception:
                                 hist_df = None
                             draw_all(price, pct_change, lines, hist_df)
                         except Exception:
-                            # ignore invalid symbol/period and continue
-                            pass
+                            set_input_message("Invalid symbol/period; press 's' to try again or 't' to trade.")
+                    last_update = time.time()
+                    continue
+                if ch in (ord('t'), ord('T')):
+                    curses.echo()
+                    curses.curs_set(1)
+                    inputWin.erase()
+                    inputWin.box()
+                    prompt = "Order: SIDE SYMBOL QTY (e.g. buy AAPL 1). Blank to cancel: "
+                    try:
+                        inputWin.addstr(1, 2, prompt)
+                        inputWin.refresh()
+                        user_input = inputWin.getstr(1, 2 + len(prompt), 48).decode().strip()
+                    except Exception:
+                        user_input = ''
+                    curses.noecho()
+                    curses.curs_set(0)
+
+                    if user_input:
+                        parts = user_input.split()
+                        if len(parts) >= 3:
+                            side = parts[0].lower()
+                            symbol_in = parts[1].upper()
+                            qty_part = parts[2]
+                            try:
+                                qty_val = float(qty_part)
+                            except ValueError:
+                                qty_val = None
+                            if side in ("buy", "sell") and qty_val and qty_val > 0:
+                                try:
+                                    order = orders.place_market_order(symbol_in, qty_val, side)
+                                    time.sleep(0.5)  # give API time to process the order
+                                    holdings = account.get_holdings()
+                                    draw_all(price, pct_change, lines, hist_df)
+                                    set_input_message(f"OK: {side.upper()} {qty_val} {symbol_in} submitted (id {order.id}).")
+                                except Exception:
+                                    set_input_message("Order failed; check API keys and funds.")
+                            else:
+                                set_input_message("Invalid input. Format: buy AAPL 1")
+                        else:
+                            set_input_message("Invalid input. Format: buy AAPL 1")
+                    else:
+                        set_input_message("Trade canceled. Press 's' to change symbol, 't' to trade, 'q' to quit.")
                     last_update = time.time()
                     continue
                 # any other key: ignore
