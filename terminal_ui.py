@@ -108,8 +108,9 @@ def main(stdscr):
     statsWin.box()
 
     # input prompt window below graph and stats (single row)
-    input_y = graph_y + GRAPH_H + 1
-    inputWin = curses.newwin(3, term_w, input_y, 0)
+    input_y = graph_y + GRAPH_H
+    input_w = GRAPH_W + 1 + STATS_W
+    inputWin = curses.newwin(3, input_w, input_y, 0)
     inputWin.box()
 
     def set_input_message(msg):
