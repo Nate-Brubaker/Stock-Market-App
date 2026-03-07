@@ -18,13 +18,13 @@ A terminal-based stock market viewer and trading interface that integrates with 
 
 ## Features
 
-- **Real-Time Stock Charts**: View ASCII charts for any stock symbol with 8 time periods (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y) using arrow keys
+- **Real-Time Stock Charts**: View ASCII charts for any stock symbol with 7 time periods (5d, 1mo, 3mo, 6mo, 1y, 2y, 5y) using arrow keys
 - **Live Portfolio Tracking**: Monitor your portfolio equity, cash balance, and buying power with automatic refresh
 - **Holdings Display**: See all your positions with current prices and unrealized P&L (color-coded green/red)
 - **Paper Trading**: Execute market orders (buy/sell) through Alpaca's paper trading API
 - **Auto-Refresh**: Stock prices and portfolio data update automatically every 5 seconds
 - **Interactive UI**: Switch between different stocks with 's' key, navigate time periods with LEFT/RIGHT arrows, and place trades all from the keyboard
-- **Responsive Layout**: Dynamic window sizing and content positioning for different terminal sizes
+- **Fixed Layout**: Consistent window positioning for a stable 103x30 terminal display
 - **Error Handling**: Robust exception handling for network issues, invalid symbols, and API errors
 
 ## Technical Implementation
@@ -40,12 +40,12 @@ A terminal-based stock market viewer and trading interface that integrates with 
   - `util.py` - Utility functions
 
 ### Key Technical Features
-- **Asynchronous Data Updates**: Non-blocking price updates every 5 seconds while maintaining UI responsiveness
-- **Dynamic Layout System**: Adaptive window positioning that automatically adjusts to terminal size
+- **Non-blocking UI**: Responsive keyboard input without blocking price updates every 5 seconds
+- **Fixed Layout Design**: Optimized curses layout for consistent display across terminals
 - **Color-Coded Indicators**: Uses curses color pairs for visual feedback (gains=green, losses=red)
 - **RESTful API Integration**: Seamless integration with Alpaca's trading platform via REST API
-- **Data Sampling Algorithm**: Intelligent data sampling to fit variable-length datasets into fixed-width charts
-- **Real-Time Position Synchronization**: Immediate portfolio updates after trade execution with API polling
+- **Linear Chart Interpolation**: Even data sampling for short-period charts with smooth price interpolation
+- **Real-Time Position Synchronization**: Immediate portfolio updates after trade execution
 
 ### Data Flow
 1. User input → Event handler → API request
@@ -77,7 +77,7 @@ A terminal-based stock market viewer and trading interface that integrates with 
 Once the application is running:
 
 - **`s`** - Change stock symbol (e.g., "AAPL" or "TSLA")
-- **`LEFT/RIGHT arrows`** - Navigate between time periods (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y)
+- **`LEFT/RIGHT arrows`** - Navigate between time periods (5d, 1mo, 3mo, 6mo, 1y, 2y, 5y)
 - **`t`** - Place a trade (format: "buy AAPL 1" or "sell MSFT 0.5")
 - **`q`** - Quit the application
 

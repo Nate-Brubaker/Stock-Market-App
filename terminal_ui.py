@@ -14,13 +14,13 @@ def main(stdscr):
     
     # Use fixed-size variables for layout (not relative to terminal size)
     INFO_H = 3
-    GRAPH_H = 20
-    DEFAULT_GRAPH_W = 75  # preferred graph width
+    GRAPH_H = 16
+    DEFAULT_GRAPH_W = 67  # preferred graph width
     STATS_W = 28  # width of the right-side stats box
     
     # Available time periods for arrow key navigation
-    PERIODS = ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y"]
-    period_index = PERIODS.index("6mo") if "6mo" in PERIODS else 4
+    PERIODS = ["5d", "1mo", "3mo", "6mo", "1y", "2y", "5y"]
+    period_index = PERIODS.index("6mo") if "6mo" in PERIODS else 3
     
     # Default view shows a ticker graph
     symbol = "AAPL"
@@ -42,9 +42,7 @@ def main(stdscr):
 
     # determine terminal size early so compute_positions can use GRAPH_W
     term_h, term_w = stdscr.getmaxyx()
-    # reserve space for stats box on the right plus a 1-column gap
-    max_graph_w = max(10, term_w - STATS_W - 3)
-    GRAPH_W = min(DEFAULT_GRAPH_W, max_graph_w)
+    GRAPH_W = DEFAULT_GRAPH_W
 
     def compute_positions(contents):
         # minimal width for a box (including padding/borders)
@@ -77,10 +75,10 @@ def main(stdscr):
 
     positions, rows_count = compute_positions(contents)
 
-    required_h = rows_count * INFO_H + GRAPH_H + 4  # extra space for input prompt
+    required_h = rows_count * INFO_H + GRAPH_H + 4
     required_w = GRAPH_W + STATS_W + 1
     if term_h < required_h or term_w < required_w:
-        stdscr.addstr(0, 0, f"Terminal too small: need {required_w}x{required_h} (WxH). Resize and retry. Press any key to exit.")
+        stdscr.addstr(0, 0, f"Terminal too small: need {required_w}x{required_h}. Press any key to exit.")
         stdscr.refresh()
         stdscr.getch()
         return
@@ -100,7 +98,7 @@ def main(stdscr):
 
     # stats window on the right of the graph
     stats_x = GRAPH_W + 1
-    statsWin = curses.newwin(GRAPH_H, STATS_W, graph_y, stats_x)
+    statsWin = curses.newwin(GRAPH_H+3, STATS_W, 0, stats_x)
     statsWin.box()
 
     # input prompt window below graph and stats (single row)
@@ -185,10 +183,10 @@ def main(stdscr):
                 statsWin.addstr(11, 2, "Holdings:", curses.color_pair(3))
                 row = 12
                 # Show all holdings that fit, starting from the most recent
-                available_rows = GRAPH_H - row - 1
+                available_rows = GRAPH_H - row + 2
                 start_idx = max(0, len(holdings) - available_rows)
                 for holding in holdings[start_idx:]:
-                    if row >= GRAPH_H - 1:
+                    if row >= GRAPH_H + 2:
                         break
                     sym = holding['symbol']
                     qty = holding['qty']
@@ -348,62 +346,8 @@ def main(stdscr):
                 new_price = data.get_latest_price(symbol)
                 if new_price is not None:
                     price = new_price
-                    # Recompute percent change using the period start price
                     pct_change = ((price / start_price) - 1.0) * 100 if start_price != 0 else 0.0
-
-                    # Build new contents and check if any box needs more width than current
-                    new_contents = make_contents(price, pct_change)
-                    needs_relayout = False
-                    for idx, text in enumerate(new_contents):
-                        needed_w = max(12, len(text) + 4)
-                        try:
-                            cur_w = info_windows[idx].getmaxyx()[1]
-                        except Exception:
-                            cur_w = 0
-                        if needed_w > cur_w:
-                            needs_relayout = True
-                            break
-
-                    if needs_relayout:
-                        # Recompute positions and recreate windows
-                        positions, rows_count = compute_positions(new_contents)
-                        # check terminal size
-                        term_h, term_w = stdscr.getmaxyx()
-                        required_h = rows_count * INFO_H + GRAPH_H + 4
-                        required_w = GRAPH_W + STATS_W + 1
-                        if term_h < required_h or term_w < required_w:
-                            # can't relayout due to terminal size; skip update
-                            last_update = now
-                            continue
-
-                        # create new windows
-                        info_windows = [None] * len(new_contents)
-                        for row_i, x, w, idx in positions:
-                            y = row_i * INFO_H
-                            win = curses.newwin(INFO_H, w, y, x)
-                            win.box()
-                            info_windows[idx] = win
-
-                        # recreate graph window below new rows
-                        graph_y = rows_count * INFO_H
-                        graphWin = curses.newwin(GRAPH_H, GRAPH_W, graph_y, 0)
-                        graphWin.box()
-
-                        # recreate stats and input windows
-                        stats_x = GRAPH_W + 1
-                        statsWin = curses.newwin(GRAPH_H, STATS_W, graph_y, stats_x)
-                        statsWin.box()
-
-                        input_y = graph_y + GRAPH_H
-                        inputWin = curses.newwin(3, input_w, input_y, 0)
-                        inputWin.box()
-
-                        # redraw everything
-                        draw_all(price, pct_change, lines)
-                    else:
-                        # simple redraw into existing windows
-                        draw_all(price, pct_change, lines)
-
+                    draw_all(price, pct_change, lines, hist_df)
                 last_update = now
 
             time.sleep(0.1)
