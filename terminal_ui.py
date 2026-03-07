@@ -1,10 +1,5 @@
-import curses
-import plotting
-import data
-import orders
-import account
-import time
-import util
+import curses, plotting, data, orders, account, time, util
+
 def main(stdscr):
 
     curses.start_color()
@@ -18,14 +13,10 @@ def main(stdscr):
     stdscr.refresh()
     
     # Use fixed-size variables for layout (not relative to terminal size)
-    # Adjust these constants to control the exact box sizes
     INFO_H = 3
-    # Keep the graph size fixed and derive the info box sizes from it
     GRAPH_H = 20
     DEFAULT_GRAPH_W = 75  # preferred graph width
     STATS_W = 28  # width of the right-side stats box
-    # Derive info box widths from GRAPH_W but allow wrapping to multiple rows
-    delayTime = 40  # Delay for each line being printed in milliseconds
     
     # Available time periods for arrow key navigation
     PERIODS = ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y"]
@@ -127,7 +118,7 @@ def main(stdscr):
             pass
         inputWin.refresh()
 
-    # Helper: draw info windows and graph
+    #draw info windows and graph
     def draw_all(current_price, current_pct, lines, hist_df=None):
         contents = make_contents(current_price, current_pct)
         # draw info boxes

@@ -18,12 +18,12 @@ A terminal-based stock market viewer and trading interface that integrates with 
 
 ## Features
 
-- **Real-Time Stock Charts**: View ASCII charts for any stock symbol with customizable time periods (1mo, 3mo, 6mo, 1y, etc.)
+- **Real-Time Stock Charts**: View ASCII charts for any stock symbol with 8 time periods (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y) using arrow keys
 - **Live Portfolio Tracking**: Monitor your portfolio equity, cash balance, and buying power with automatic refresh
 - **Holdings Display**: See all your positions with current prices and unrealized P&L (color-coded green/red)
 - **Paper Trading**: Execute market orders (buy/sell) through Alpaca's paper trading API
 - **Auto-Refresh**: Stock prices and portfolio data update automatically every 5 seconds
-- **Interactive UI**: Switch between different stocks, place trades, and view stats all from the keyboard
+- **Interactive UI**: Switch between different stocks with 's' key, navigate time periods with LEFT/RIGHT arrows, and place trades all from the keyboard
 - **Responsive Layout**: Dynamic window sizing and content positioning for different terminal sizes
 - **Error Handling**: Robust exception handling for network issues, invalid symbols, and API errors
 
@@ -76,7 +76,8 @@ A terminal-based stock market viewer and trading interface that integrates with 
 
 Once the application is running:
 
-- **`s`** - Change symbol/period (e.g., "AAPL 3mo" or "TSLA 1y")
+- **`s`** - Change stock symbol (e.g., "AAPL" or "TSLA")
+- **`LEFT/RIGHT arrows`** - Navigate between time periods (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y)
 - **`t`** - Place a trade (format: "buy AAPL 1" or "sell MSFT 0.5")
 - **`q`** - Quit the application
 
