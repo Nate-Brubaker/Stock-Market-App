@@ -26,9 +26,14 @@ def main(stdscr):
     STATS_W = 28  # width of the right-side stats box
     # Derive info box widths from GRAPH_W but allow wrapping to multiple rows
     delayTime = 40  # Delay for each line being printed in milliseconds
+    
+    # Available time periods for arrow key navigation
+    PERIODS = ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y"]
+    period_index = PERIODS.index("6mo") if "6mo" in PERIODS else 4
+    
     # Default view shows a ticker graph
     symbol = "AAPL"
-    period = "6mo"
+    period = PERIODS[period_index]
     interval = "1d"
     plot, start_price, price, pct_change, period = plotting.plot_stock(symbol, period=period, interval=interval)
     try:
@@ -222,7 +227,7 @@ def main(stdscr):
     # Initial draw
     draw_all(price, pct_change, lines, hist_df)
     # Input hint
-    set_input_message("Press 's' to change symbol/period, 't' to trade, 'q' to quit.")
+    set_input_message("Press 's' to change symbol, LEFT/RIGHT arrows to change period, 't' to trade, 'q' to quit.")
 
     # Now enter an update loop: poll for latest price every 5 seconds and update boxes
     stdscr.nodelay(True)
@@ -236,12 +241,12 @@ def main(stdscr):
                 if ch in (ord('q'), ord('Q')):
                     break
                 if ch in (ord('s'), ord('S')):
-                    # prompt user for new symbol and period
+                    # prompt user for new symbol only
                     curses.echo()
                     curses.curs_set(1)
                     inputWin.erase()
                     inputWin.box()
-                    prompt = "Enter SYMBOL [PERIOD] (e.g. AAPL 3mo). Blank to cancel: "
+                    prompt = "Enter SYMBOL (e.g. AAPL). Blank to cancel: "
                     try:
                         inputWin.addstr(1, 2, prompt)
                         inputWin.refresh()
@@ -252,16 +257,13 @@ def main(stdscr):
                     curses.noecho()
                     curses.curs_set(0)
                     # restore input window box
-                    set_input_message("Press 's' to change symbol/period, 't' to trade, 'q' to quit.")
+                    set_input_message("Press 's' to change symbol, LEFT/RIGHT arrows to change period, 't' to trade, 'q' to quit.")
 
                     if user_input:
-                        parts = user_input.split()
-                        new_symbol = parts[0].upper()
-                        new_period = parts[1] if len(parts) > 1 else period
+                        new_symbol = user_input.upper()
                         try:
-                            plot, start_price, price, pct_change, period = plotting.plot_stock(new_symbol, period=new_period, interval=interval)
+                            plot, start_price, price, pct_change, period = plotting.plot_stock(new_symbol, period=period, interval=interval)
                             symbol = new_symbol
-                            period = new_period
                             lines = plot.split('\n')
                             try:
                                 hist_df = data.get_daily_history(symbol, period=period, interval=interval)
@@ -269,7 +271,7 @@ def main(stdscr):
                                 hist_df = None
                             draw_all(price, pct_change, lines, hist_df)
                         except Exception:
-                            set_input_message("Invalid symbol/period; press 's' to try again or 't' to trade.")
+                            set_input_message("Invalid symbol; press 's' to try again or 't' to trade.")
                     last_update = time.time()
                     continue
                 if ch in (ord('t'), ord('T')):
@@ -312,6 +314,38 @@ def main(stdscr):
                             set_input_message("Invalid input. Format: buy AAPL 1")
                     else:
                         set_input_message("Trade canceled. Press 's' to change symbol, 't' to trade, 'q' to quit.")
+                    last_update = time.time()
+                    continue
+                # Left arrow: previous period
+                if ch == 260:
+                    period_index = (period_index - 1) % len(PERIODS)
+                    period = PERIODS[period_index]
+                    try:
+                        plot, start_price, price, pct_change, period = plotting.plot_stock(symbol, period=period, interval=interval)
+                        lines = plot.split('\n')
+                        try:
+                            hist_df = data.get_daily_history(symbol, period=period, interval=interval)
+                        except Exception:
+                            hist_df = None
+                        draw_all(price, pct_change, lines, hist_df)
+                    except Exception:
+                        set_input_message(f"Failed to load period {period}. Try another period.")
+                    last_update = time.time()
+                    continue
+                # Right arrow: next period
+                if ch == 261:
+                    period_index = (period_index + 1) % len(PERIODS)
+                    period = PERIODS[period_index]
+                    try:
+                        plot, start_price, price, pct_change, period = plotting.plot_stock(symbol, period=period, interval=interval)
+                        lines = plot.split('\n')
+                        try:
+                            hist_df = data.get_daily_history(symbol, period=period, interval=interval)
+                        except Exception:
+                            hist_df = None
+                        draw_all(price, pct_change, lines, hist_df)
+                    except Exception:
+                        set_input_message(f"Failed to load period {period}. Try another period.")
                     last_update = time.time()
                     continue
                 # any other key: ignore
@@ -369,8 +403,8 @@ def main(stdscr):
                         statsWin = curses.newwin(GRAPH_H, STATS_W, graph_y, stats_x)
                         statsWin.box()
 
-                        input_y = graph_y + GRAPH_H + 1
-                        inputWin = curses.newwin(3, term_w, input_y, 0)
+                        input_y = graph_y + GRAPH_H
+                        inputWin = curses.newwin(3, input_w, input_y, 0)
                         inputWin.box()
 
                         # redraw everything

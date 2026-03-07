@@ -36,15 +36,39 @@ def plot_stock(symbol, period="1mo", interval="1d"):
     pct_change = ((current_price / start_price) - 1.0) * 100 if start_price != 0 else 0.0
 
     # Sample prices/dates to the chart width
+    # For shorter periods (2 months or less), use linear interpolation of indices for even date spacing
     factor = max(1, len(prices) / chart_width) if len(prices) > 0 else 1
+    
+    # Determine if period is 2 months or shorter
+    is_short_period = period in ["1mo", "2mo", "5d", "1d", "3d"]
+    
     sampled_prices = []
     sampled_dates = []
     for i in range(chart_width):
-        idx = int(i * factor)
-        if idx >= len(prices):
-            idx = len(prices) - 1
-        sampled_prices.append(prices[idx])
-        sampled_dates.append(dates[idx])
+        if is_short_period and len(prices) > 1:
+            # For short periods, use linear interpolation for even visual spacing
+            idx = (i * (len(prices) - 1)) / (chart_width - 1) if chart_width > 1 else 0
+            # Interpolate between two prices if needed
+            idx_low = int(idx)
+            idx_high = min(idx_low + 1, len(prices) - 1)
+            t = idx - idx_low
+            
+            if idx_low == idx_high:
+                sampled_prices.append(prices[idx_low])
+                sampled_dates.append(dates[idx_low])
+            else:
+                # Linear interpolation for smooth curve
+                price = prices[idx_low] * (1 - t) + prices[idx_high] * t
+                sampled_prices.append(price)
+                # Use the later date for display
+                sampled_dates.append(dates[idx_high] if t > 0.5 else dates[idx_low])
+        else:
+            # For longer periods, use regular sampling
+            idx = int(i * factor)
+            if idx >= len(prices):
+                idx = len(prices) - 1
+            sampled_prices.append(prices[idx])
+            sampled_dates.append(dates[idx])
 
 
     # Plot chart
