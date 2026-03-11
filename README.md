@@ -1,6 +1,7 @@
 # Stock Market App
 
 A terminal-based stock market viewer and trading interface that integrates with Alpaca's paper trading API. View real-time stock charts, monitor your portfolio, and execute trades directly from a clean terminal UI.
+<img width="600" alt="Stock Market Application" src="https://github.com/user-attachments/assets/f4eedfb2-0d95-4e27-80ae-bc20564632e4" />
 
 ## Technology Stack
 
